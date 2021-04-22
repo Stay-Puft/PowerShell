@@ -1,0 +1,51 @@
+$dir = Get-ChildItem .\*.csv
+function menu {
+    $i = 1
+    Clear-Host
+    Write-Host "Select CSV:"
+    Write-Host ""
+    ForEach($csv in $dir){
+        Write-Host $i ": $csv"
+        $i++
+    }
+    $selection = Read-Host
+    Return $selection - 1
+}
+
+$allCustomers = Import-Csv "$path" | ForEach-Object {
+    $_.Website = $_.Website -replace "^(https?:\/\/(www.)?)|www.|(?<=\w)\/.*",''
+    $_
+}
+
+$x = menu
+$path = $dir[$x].FullName
+$total = $allCustomers.Count
+$count = 0
+$output = @()
+$outputPath = $path -replace '.csv','_output.csv'
+
+ForEach($customer in $allCustomers){
+
+
+    $txt = Resolve-DnsName -Type TXT -Name $customer.Website
+    $mx = Resolve-DnsName -Type MX -Name $customer.Website
+ 
+    if($txt.Strings -like "*spf.protection.outlook.com*")
+    { $customer | Add-Member -MemberType NoteProperty -Name SPF -Value $True } else { $customer | Add-Member -MemberType NoteProperty -Name SPF -Value $False }
+
+    if($txt.Strings -like "*MS=ms*")
+    { $customer | Add-Member -MemberType NoteProperty -Name UID -Value $True } else { $customer | Add-Member -MemberType NoteProperty -Name UID -Value $False }
+
+    if($mx.NameExchange -like "*outlook.com*")
+    { $customer | Add-Member -MemberType NoteProperty -Name MX -Value $True } else { $customer | Add-Member -MemberType NoteProperty -Name MX -Value $False }
+
+    if(($customer.SPF -eq $True) -or ($customer.UID -eq $True) -or ($customer.MX -eq $True)){
+    $output += $customer
+    }
+
+    
+$count++
+Clear-Host
+Write-Output "$count of $total domains checked."
+}
+$output | Export-csv $outputPath -NoTypeInformation
