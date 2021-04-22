@@ -1,4 +1,4 @@
-$dir = Get-ChildItem .\*.csv
+$dir = Get-ChildItem $PSScriptRoot\*.csv
 function menu {
     $i = 1
     Clear-Host
@@ -11,17 +11,26 @@ function menu {
     $selection = Read-Host
     Return $selection - 1
 }
+# Start menu and get selection - no exception handling
+$x = menu
 
+# Define import CSV path based on selection
+$path = $dir[$x].FullName
+
+# Load customers into array
 $allCustomers = Import-Csv "$path" | ForEach-Object {
     $_.Website = $_.Website -replace "^(https?:\/\/(www.)?)|www.|(?<=\w)\/.*",''
     $_
 }
 
-$x = menu
-$path = $dir[$x].FullName
+# Counter
 $total = $allCustomers.Count
 $count = 0
+
+# Define output array
 $output = @()
+
+# Define output file name
 $outputPath = $path -replace '.csv','_output.csv'
 
 ForEach($customer in $allCustomers){
@@ -53,7 +62,6 @@ ForEach($customer in $allCustomers){
 
     
 $count++
-Clear-Host
-Write-Output "$count of $total domains checked."
+Write-Progress -Activity "Checking DNS record for $customer.Website" -PercentComplete (($count/$total)*100)
 }
 $output | Export-csv $outputPath -NoTypeInformation
